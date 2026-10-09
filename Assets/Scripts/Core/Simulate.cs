@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SimulationManager : MonoBehaviour
+/// <summary>
+/// Orquestador central: todas las entidades se actualizan solo desde aquí.
+/// </summary>
+public class Simulate : MonoBehaviour
 {
     public float secondsPerIteration = 1.0f;
     public bool ended = false;
@@ -28,11 +31,14 @@ public class SimulationManager : MonoBehaviour
         if (time >= secondsPerIteration)
         {
             time = 0f;
-            Simulate();
+            RunTick();
         }
     }
 
-    void Simulate()
+    /// <summary>
+    /// Un ciclo de simulación: llama Simulate() de cada entidad viva y del spawner.
+    /// </summary>
+    void RunTick()
     {
         foreach (Agent agent in agents)
         {

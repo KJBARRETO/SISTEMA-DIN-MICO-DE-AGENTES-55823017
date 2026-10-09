@@ -43,7 +43,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7aee03c263c25634e92990da1907b9be, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SimulationManager
+  m_EditorClassIdentifier: Assembly-CSharp::Simulate
   secondsPerIteration: 0.01
   agents: []
   spawner: {fileID: 0}
