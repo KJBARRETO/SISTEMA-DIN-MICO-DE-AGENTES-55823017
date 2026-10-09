@@ -51,24 +51,25 @@ MonoBehaviour:
   mensajeFinal: 
   aldeanoVidaMaxima: 100
   aldeanoEnergiaMaxima: 100
-  aldeanoVelocidad: 2
-  aldeanoVelocidadHuyendo: 3.2
-  aldeanoRadioVision: 4
-  aldeanoCapacidadCarga: 10
-  aldeanoMaderaPorTick: 1
-  aldeanoConsumoEnergiaPorTick: 0.5
-  aldeanoTiempoEntreRefugios: 25
-  aldeanoDuracionRefugio: 3
+  aldeanoVelocidad: 2.4
+  aldeanoVelocidadHuyendo: 4.8
+  aldeanoRadioVision: 5
+  aldeanoCapacidadCarga: 8
+  aldeanoMaderaPorTick: 3
+  aldeanoConsumoEnergiaPorTick: 0.3
+  aldeanoTiempoEntreRefugios: 20
+  aldeanoDuracionRefugio: 2.5
   loboVidaMaxima: 80
   loboHambreMaxima: 100
-  loboHambrePorTick: 1.5
-  loboVelocidad: 2.8
-  loboVelocidadPersiguiendo: 3.5
-  loboRadioDeteccion: 5
-  loboRadioAtaque: 0.6
-  loboDanio: 25
-  loboDuracionDescanso: 4
-  loboHambreTrasCazar: 20
+  loboHambrePorTick: 0.8
+  loboVelocidad: 2
+  loboVelocidadPersiguiendo: 3
+  loboRadioDeteccion: 3.5
+  loboRadioAtaque: 0.55
+  loboDanio: 12
+  loboDuracionDescanso: 6
+  loboHambreTrasCazar: 15
+  loboHambreMinimaParaCazar: 45
   arbolMaderaMaxima: 20
   arbolTasaRegeneracion: 0.4
   arbolUmbralDisponible: 1

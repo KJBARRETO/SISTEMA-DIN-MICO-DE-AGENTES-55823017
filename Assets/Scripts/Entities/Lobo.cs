@@ -50,6 +50,7 @@ public class Lobo : Agent
         vidaMaxima = cfg.loboVidaMaxima;
         vida = vidaMaxima;
         hambreMaxima = cfg.loboHambreMaxima;
+        hambre = 20f; // empieza poco hambriento: da tiempo a los aldeanos
         speed = cfg.loboVelocidad;
         visionRange = cfg.loboRadioDeteccion;
         danio = cfg.loboDanio;
@@ -74,18 +75,27 @@ public class Lobo : Agent
         if (estadoLobo == EstadoLobo.Descansando || estadoLobo == EstadoLobo.Muerto)
             return;
 
+        // Solo caza si tiene suficiente hambre (da tiempo a recolectar)
+        var cfg = global::Simulate.Instancia;
+        float umbralHambre = cfg != null ? cfg.loboHambreMinimaParaCazar : 45f;
+        if (hambre < umbralHambre)
+        {
+            presa = null;
+            estadoLobo = EstadoLobo.Patrullando;
+            return;
+        }
+
         presa = BuscarPresaValida();
         if (presa == null)
         {
-            if (estadoLobo != EstadoLobo.Patrullando)
-                estadoLobo = EstadoLobo.Patrullando;
+            estadoLobo = EstadoLobo.Patrullando;
             return;
         }
 
         float dist = Vector2.Distance(transform.position, presa.transform.position);
         if (dist <= radioAtaque)
             estadoLobo = EstadoLobo.Atacando;
-        else if (dist <= visionRange * 0.6f)
+        else if (dist <= visionRange * 0.55f)
             estadoLobo = EstadoLobo.Persiguiendo;
         else
             estadoLobo = EstadoLobo.Rastreando;
@@ -153,7 +163,7 @@ public class Lobo : Agent
                 if (cooldownAtaque <= 0f)
                 {
                     presa.RecibirDanio(danio, this);
-                    cooldownAtaque = 0.7f;
+                    cooldownAtaque = 1.2f;
                 }
 
                 if (presa == null || !presa.isAlive)

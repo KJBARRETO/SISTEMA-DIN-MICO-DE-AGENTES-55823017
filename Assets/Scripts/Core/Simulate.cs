@@ -28,26 +28,27 @@ public class Simulate : MonoBehaviour
     [Header("Aldeano")]
     public float aldeanoVidaMaxima = 100f;
     public float aldeanoEnergiaMaxima = 100f;
-    public float aldeanoVelocidad = 2f;
-    public float aldeanoVelocidadHuyendo = 3.2f;
-    public float aldeanoRadioVision = 4f;
-    public float aldeanoCapacidadCarga = 10f;
-    public float aldeanoMaderaPorTick = 1f;
-    public float aldeanoConsumoEnergiaPorTick = 0.5f;
-    public float aldeanoTiempoEntreRefugios = 25f;
-    public float aldeanoDuracionRefugio = 3f;
+    public float aldeanoVelocidad = 2.4f;
+    public float aldeanoVelocidadHuyendo = 4.8f; // más rápido que el lobo
+    public float aldeanoRadioVision = 5f;
+    public float aldeanoCapacidadCarga = 8f;
+    public float aldeanoMaderaPorTick = 3f; // recolecta más rápido
+    public float aldeanoConsumoEnergiaPorTick = 0.3f;
+    public float aldeanoTiempoEntreRefugios = 20f;
+    public float aldeanoDuracionRefugio = 2.5f;
 
     [Header("Lobo")]
     public float loboVidaMaxima = 80f;
     public float loboHambreMaxima = 100f;
-    public float loboHambrePorTick = 1.5f;
-    public float loboVelocidad = 2.8f;
-    public float loboVelocidadPersiguiendo = 3.5f;
-    public float loboRadioDeteccion = 5f;
-    public float loboRadioAtaque = 0.6f;
-    public float loboDanio = 25f;
-    public float loboDuracionDescanso = 4f;
-    public float loboHambreTrasCazar = 20f;
+    public float loboHambrePorTick = 0.8f;
+    public float loboVelocidad = 2f;
+    public float loboVelocidadPersiguiendo = 3f; // más lento que la huida
+    public float loboRadioDeteccion = 3.5f;
+    public float loboRadioAtaque = 0.55f;
+    public float loboDanio = 12f;
+    public float loboDuracionDescanso = 6f;
+    public float loboHambreTrasCazar = 15f;
+    public float loboHambreMinimaParaCazar = 45f;
 
     [Header("Árbol")]
     public float arbolMaderaMaxima = 20f;

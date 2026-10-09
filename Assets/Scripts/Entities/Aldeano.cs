@@ -186,8 +186,18 @@ public class Aldeano : Agent
                 break;
 
             case EstadoAldeano.Huyendo:
-                IrAAldea();
+                // Corre a la aldea; si no hay aldea, huye del lobo
+                if (Aldea.Instancia != null)
+                    IrAAldea();
+                else if (loboAmenaza != null)
+                {
+                    Vector3 lejos = transform.position - loboAmenaza.transform.position;
+                    if (lejos.sqrMagnitude < 0.01f) lejos = Vector3.left;
+                    destination = transform.position + lejos.normalized * 5f;
+                }
+
                 MoverHaciaDestino(velHuida);
+
                 if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(transform.position))
                 {
                     DepositarYRefugiarse();
