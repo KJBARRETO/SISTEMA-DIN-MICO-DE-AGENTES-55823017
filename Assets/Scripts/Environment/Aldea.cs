@@ -1,8 +1,7 @@
 using UnityEngine;
 
-/// <summary>
-/// Zona segura + almacén de madera. Los lobos no pueden entrar.
-/// </summary>
+// Zona segura + almacén de madera compartido.
+// Los lobos no pueden entrar aquí.
 public class Aldea : MonoBehaviour
 {
     public static Aldea Instancia { get; private set; }
@@ -13,6 +12,7 @@ public class Aldea : MonoBehaviour
 
     void Awake()
     {
+        // Solo una aldea activa
         if (Instancia != null && Instancia != this)
         {
             Destroy(this);
@@ -21,15 +21,17 @@ public class Aldea : MonoBehaviour
 
         Instancia = this;
         zona = GetComponent<Zona>();
+
+        // Si no tiene Zona, se la crea
         if (zona == null)
         {
             zona = gameObject.AddComponent<Zona>();
             zona.tipo = TipoZona.Aldea;
-            zona.radio = global::Simulate.Instancia != null ? global::Simulate.Instancia.aldeaRadio : 4f;
+            zona.radio = ConfigSim.Actual != null ? ConfigSim.Actual.aldeaRadio : 4f;
         }
 
-        if (global::Simulate.Instancia != null)
-            maderaEnAlmacen = global::Simulate.Instancia.aldeaMaderaInicial;
+        if (ConfigSim.Actual != null)
+            maderaEnAlmacen = ConfigSim.Actual.aldeaMaderaInicial;
     }
 
     void OnDestroy()
@@ -37,6 +39,7 @@ public class Aldea : MonoBehaviour
         if (Instancia == this) Instancia = null;
     }
 
+    // El aldeano deja aquí la madera que trajo
     public void DepositarMadera(float cantidad)
     {
         if (cantidad > 0f) maderaEnAlmacen += cantidad;
@@ -45,10 +48,11 @@ public class Aldea : MonoBehaviour
     public bool EstaDentro(Vector3 posicion)
     {
         if (zona != null) return zona.Contiene(posicion);
-        float radio = global::Simulate.Instancia != null ? global::Simulate.Instancia.aldeaRadio : 4f;
+        float radio = ConfigSim.Actual != null ? ConfigSim.Actual.aldeaRadio : 4f;
         return Vector2.Distance(transform.position, posicion) <= radio;
     }
 
+    // Centro de la aldea (punto de refugio)
     public Vector3 PuntoRefugio() => transform.position;
 
     public void ActualizarPoblacion(int vivos) => aldeanosVivos = Mathf.Max(0, vivos);

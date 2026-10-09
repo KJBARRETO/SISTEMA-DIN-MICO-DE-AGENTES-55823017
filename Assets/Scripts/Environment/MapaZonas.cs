@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Consulta de zonas. Prioridad: Aldea > Bosque > Camino.
-/// </summary>
+// Ayuda a saber en qué zona está cada cosa.
+// Si se solapan: gana Aldea, luego Bosque, luego Camino.
 public class MapaZonas : MonoBehaviour
 {
     public static MapaZonas Instancia { get; private set; }
@@ -23,7 +22,7 @@ public class MapaZonas : MonoBehaviour
 
     void Start()
     {
-        // Por si Aldea/Zonas se crearon después del Awake
+        // Por si alguna zona se creó después del Awake
         RefrescarZonas();
     }
 
@@ -32,6 +31,7 @@ public class MapaZonas : MonoBehaviour
         if (Instancia == this) Instancia = null;
     }
 
+    // Busca todas las Zona de la escena
     public void RefrescarZonas()
     {
         zonas = new List<Zona>(FindObjectsByType<Zona>(FindObjectsSortMode.InstanceID));
@@ -57,6 +57,8 @@ public class MapaZonas : MonoBehaviour
     }
 
     public bool EstaEnAldea(Vector3 posicion) => ObtenerTipoZona(posicion) == TipoZona.Aldea;
+
+    // Los lobos usan esto para no meterse a la aldea
     public bool PosicionPermitidaParaLobo(Vector3 posicion) => !EstaEnAldea(posicion);
 
     public Zona ObtenerPrimeraZona(TipoZona tipo)
@@ -66,6 +68,7 @@ public class MapaZonas : MonoBehaviour
         return null;
     }
 
+    // Punto random dentro de una zona (para spawn / patrulla)
     public bool IntentarPuntoAleatorio(TipoZona tipo, out Vector3 punto)
     {
         Zona zona = ObtenerPrimeraZona(tipo);

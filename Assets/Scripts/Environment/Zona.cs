@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// Tipos de zona del mapa
 public enum TipoZona
 {
     Camino,
@@ -7,19 +8,19 @@ public enum TipoZona
     Aldea
 }
 
-/// <summary>
-/// Región circular: Aldea, Bosque o Camino.
-/// </summary>
+// Círculo en el mapa: aldea, bosque o camino
 public class Zona : MonoBehaviour
 {
     public TipoZona tipo = TipoZona.Camino;
     public float radio = 5f;
 
+    // ¿Esta posición cae dentro de la zona?
     public bool Contiene(Vector3 posicion)
     {
         return Vector2.Distance(transform.position, posicion) <= radio;
     }
 
+    // Solo se dibuja al seleccionar el objeto (para no llenar la escena)
     void OnDrawGizmosSelected()
     {
         switch (tipo)

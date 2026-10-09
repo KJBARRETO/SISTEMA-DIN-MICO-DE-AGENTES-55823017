@@ -13,7 +13,7 @@ GameObject:
   m_Layer: 0
   m_Name: Simulation
   m_TagString: Untagged
-  m_Icon: {fileID: -964228994112308473, guid: 0000000000000000d000000000000000, type: 0}
+  m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -54,31 +54,31 @@ MonoBehaviour:
   aldeanoVelocidad: 2.4
   aldeanoVelocidadHuyendo: 4.8
   aldeanoRadioVision: 5
-  aldeanoCapacidadCarga: 8
-  aldeanoMaderaPorTick: 3
-  aldeanoConsumoEnergiaPorTick: 0.3
-  aldeanoTiempoEntreRefugios: 20
-  aldeanoDuracionRefugio: 2.5
+  aldeanoCapacidadCarga: 6
+  aldeanoMaderaPorTick: 5
+  aldeanoConsumoEnergiaPorTick: 0.25
+  aldeanoTiempoEntreRefugios: 18
+  aldeanoDuracionRefugio: 2
   loboVidaMaxima: 80
   loboHambreMaxima: 100
-  loboHambrePorTick: 0.8
-  loboVelocidad: 2
-  loboVelocidadPersiguiendo: 3
-  loboRadioDeteccion: 3.5
-  loboRadioAtaque: 0.55
-  loboDanio: 12
-  loboDuracionDescanso: 6
-  loboHambreTrasCazar: 15
-  loboHambreMinimaParaCazar: 45
+  loboHambrePorTick: 0.5
+  loboVelocidad: 1.8
+  loboVelocidadPersiguiendo: 2.6
+  loboRadioDeteccion: 3
+  loboRadioAtaque: 0.5
+  loboDanio: 10
+  loboDuracionDescanso: 8
+  loboHambreTrasCazar: 10
+  loboHambreMinimaParaCazar: 60
   arbolMaderaMaxima: 20
   arbolTasaRegeneracion: 0.4
   arbolUmbralDisponible: 1
   aldeaRadio: 4
   aldeaMaderaInicial: 0
   prefabLobo: {fileID: 4000000000000000001, guid: d4e5f60718293a4b5c6d7e8f01a2b3c4, type: 3}
-  spawnIntervaloLobos: 8
-  spawnMaxLobos: 6
-  spawnProbabilidadBase: 0.35
+  spawnIntervaloLobos: 12
+  spawnMaxLobos: 4
+  spawnProbabilidadBase: 1
   maderaObjetivoVictoria: 40
   tiempoSupervivenciaVictoria: 120
   maderaMinimaSupervivencia: 5

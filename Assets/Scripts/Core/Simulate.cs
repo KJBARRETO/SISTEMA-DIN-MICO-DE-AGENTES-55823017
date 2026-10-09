@@ -1,26 +1,28 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Mensajes solo en Consola.
-/// </summary>
+// Escribe mensajes en la Consola de Unity
 public static class RegistroEventos
 {
     public static void Agregar(string mensaje) => Debug.Log($"[{Time.time:0.0}s] {mensaje}");
     public static void Limpiar() { }
 }
 
-/// <summary>
-/// Orquestador + parámetros de la simulación (Caso 3).
-/// Todas las entidades se actualizan solo desde aquí.
-/// </summary>
+// Atajo para leer la config sin chocar con el método Simulate()
+public static class ConfigSim
+{
+    public static Simulate Actual => Simulate.Instancia;
+}
+
+// Controla toda la simulación (Caso 3: Aldea, Lobos y Bosque).
+// Desde aquí se llama Simulate() de cada entidad. Nadie se actualiza solo.
 public class Simulate : MonoBehaviour
 {
     public static Simulate Instancia { get; private set; }
 
     [Header("General")]
-    public int semillaAleatoria = 42;
-    public float secondsPerIteration = 0.05f;
+    public int semillaAleatoria = 42;          // para poder repetir la misma corrida
+    public float secondsPerIteration = 0.05f;  // duración de cada tick
     public bool ended = false;
     public float tiempoSimulado = 0f;
     public string mensajeFinal = "";
@@ -31,24 +33,24 @@ public class Simulate : MonoBehaviour
     public float aldeanoVelocidad = 2.4f;
     public float aldeanoVelocidadHuyendo = 4.8f; // más rápido que el lobo
     public float aldeanoRadioVision = 5f;
-    public float aldeanoCapacidadCarga = 8f;
-    public float aldeanoMaderaPorTick = 3f; // recolecta más rápido
-    public float aldeanoConsumoEnergiaPorTick = 0.3f;
-    public float aldeanoTiempoEntreRefugios = 20f;
-    public float aldeanoDuracionRefugio = 2.5f;
+    public float aldeanoCapacidadCarga = 6f;
+    public float aldeanoMaderaPorTick = 5f;
+    public float aldeanoConsumoEnergiaPorTick = 0.25f;
+    public float aldeanoTiempoEntreRefugios = 18f;
+    public float aldeanoDuracionRefugio = 2f;
 
     [Header("Lobo")]
     public float loboVidaMaxima = 80f;
     public float loboHambreMaxima = 100f;
-    public float loboHambrePorTick = 0.8f;
-    public float loboVelocidad = 2f;
-    public float loboVelocidadPersiguiendo = 3f; // más lento que la huida
-    public float loboRadioDeteccion = 3.5f;
-    public float loboRadioAtaque = 0.55f;
-    public float loboDanio = 12f;
-    public float loboDuracionDescanso = 6f;
-    public float loboHambreTrasCazar = 15f;
-    public float loboHambreMinimaParaCazar = 45f;
+    public float loboHambrePorTick = 0.5f;
+    public float loboVelocidad = 1.8f;
+    public float loboVelocidadPersiguiendo = 2.6f;
+    public float loboRadioDeteccion = 3f;
+    public float loboRadioAtaque = 0.5f;
+    public float loboDanio = 10f;
+    public float loboDuracionDescanso = 8f;
+    public float loboHambreTrasCazar = 10f;
+    public float loboHambreMinimaParaCazar = 60f; // si tiene poca hambre, solo patrulla
 
     [Header("Árbol")]
     public float arbolMaderaMaxima = 20f;
@@ -61,9 +63,9 @@ public class Simulate : MonoBehaviour
 
     [Header("Spawn lobos")]
     public GameObject prefabLobo;
-    public float spawnIntervaloLobos = 8f;
-    public int spawnMaxLobos = 6;
-    public float spawnProbabilidadBase = 0.35f;
+    public float spawnIntervaloLobos = 12f;
+    public int spawnMaxLobos = 4;
+    public float spawnProbabilidadBase = 1f;
 
     [Header("Victoria / Fracaso")]
     public float maderaObjetivoVictoria = 40f;
@@ -83,12 +85,14 @@ public class Simulate : MonoBehaviour
 
     void Awake()
     {
+        // Solo una instancia de Simulate
         if (Instancia != null && Instancia != this)
         {
             Destroy(gameObject);
             return;
         }
         Instancia = this;
+
         if (semillaAleatoria >= 0)
             Random.InitState(semillaAleatoria);
     }
@@ -103,11 +107,17 @@ public class Simulate : MonoBehaviour
         RefrescarListas();
         RegistroEventos.Agregar("Simulación iniciada (Caso 3: Aldea, Lobos y Bosque)");
         ActualizarPoblacionAldea();
+
+        // Si no hay lobos al inicio, el primero sale más pronto
+        if (ContarVivos<Lobo>() == 0)
+            tiempoSpawnLobos = spawnIntervaloLobos - 8f;
     }
 
     void Update()
     {
         if (ended) return;
+
+        // Cada cierto tiempo corre un tick de la simulación
         time += Time.deltaTime;
         if (time >= secondsPerIteration)
         {
@@ -116,6 +126,7 @@ public class Simulate : MonoBehaviour
         }
     }
 
+    // Un ciclo completo: recursos → aldeanos → lobos → spawn → reglas
     void RunTick()
     {
         RefrescarListas();
@@ -123,9 +134,14 @@ public class Simulate : MonoBehaviour
         foreach (Arbol arbol in arboles)
             if (arbol != null) arbol.Simulate(secondsPerIteration);
 
+        // Primero aldeanos, luego lobos (así pueden huir en el mismo tick)
         List<Agent> copia = new List<Agent>(agents);
         foreach (Agent agent in copia)
-            if (agent != null && agent.isAlive)
+            if (agent is Aldeano && agent != null && agent.isAlive)
+                agent.Simulate(secondsPerIteration);
+
+        foreach (Agent agent in copia)
+            if (agent is Lobo && agent != null && agent.isAlive)
                 agent.Simulate(secondsPerIteration);
 
         SpawnLobosBosque(secondsPerIteration);
@@ -135,6 +151,7 @@ public class Simulate : MonoBehaviour
         EvaluarFin();
     }
 
+    // Vuelve a buscar quién sigue vivo en la escena
     void RefrescarListas()
     {
         agents.Clear();
@@ -146,24 +163,33 @@ public class Simulate : MonoBehaviour
             if (a != null) arboles.Add(a);
     }
 
+    // Crea lobos en el bosque de vez en cuando
     void SpawnLobosBosque(float h)
     {
         if (prefabLobo == null) return;
 
         tiempoSpawnLobos += h;
         if (tiempoSpawnLobos < spawnIntervaloLobos) return;
-        tiempoSpawnLobos = 0f;
 
-        if (ContarVivos<Lobo>() >= spawnMaxLobos) return;
+        if (ContarVivos<Lobo>() >= spawnMaxLobos)
+        {
+            tiempoSpawnLobos = 0f;
+            return;
+        }
 
-        float bonus = Mathf.Clamp01(ContarVivos<Aldeano>() / 5f) * 0.25f;
-        if (Random.value > spawnProbabilidadBase + bonus) return;
-
-        if (MapaZonas.Instancia == null ||
-            !MapaZonas.Instancia.IntentarPuntoAleatorio(TipoZona.Bosque, out Vector3 punto) ||
-            !MapaZonas.Instancia.PosicionPermitidaParaLobo(punto))
+        if (Random.value > spawnProbabilidadBase)
             return;
 
+        // Intenta spawnear en el bosque; si no hay zona, usa un punto a la derecha
+        Vector3 punto = new Vector3(Random.Range(5f, 9f), Random.Range(-3f, 3f), 0f);
+        if (MapaZonas.Instancia != null)
+            MapaZonas.Instancia.IntentarPuntoAleatorio(TipoZona.Bosque, out punto);
+
+        // Nunca dentro de la aldea
+        if (MapaZonas.Instancia != null && !MapaZonas.Instancia.PosicionPermitidaParaLobo(punto))
+            return;
+
+        tiempoSpawnLobos = 0f;
         GameObject go = Instantiate(prefabLobo, punto, Quaternion.identity);
         RegistroEventos.Agregar($"Spawn de lobo en el bosque ({go.name})");
     }
@@ -182,6 +208,7 @@ public class Simulate : MonoBehaviour
             Aldea.Instancia.ActualizarPoblacion(ContarVivos<Aldeano>());
     }
 
+    // Revisa si ya ganamos o perdimos
     void EvaluarFin()
     {
         int aldeanos = ContarVivos<Aldeano>();

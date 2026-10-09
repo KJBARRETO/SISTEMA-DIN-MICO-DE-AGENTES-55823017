@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// Estados del aldeano
 public enum EstadoAldeano
 {
     Descansando,
@@ -12,10 +13,7 @@ public enum EstadoAldeano
     Muerto
 }
 
-/// <summary>
-/// Aldeano: recolecta madera, se refugia en la aldea y huye de lobos.
-/// Dinámica emergente: memoria de zonas peligrosas (evita donde lo atacaron).
-/// </summary>
+// Habitante de la aldea: junta madera y huye de los lobos
 public class Aldeano : Agent
 {
     public EstadoAldeano estadoAldeano = EstadoAldeano.Descansando;
@@ -23,12 +21,12 @@ public class Aldeano : Agent
     public float capacidadCarga = 10f;
     public float maderaPorTick = 1f;
 
-    float temporizadorRefugio;
+    float temporizadorRefugio; // cuándo debe volver a refugiarse
     float tiempoEnRefugio;
     Arbol arbolObjetivo;
     Lobo loboAmenaza;
 
-    // Memoria emergente: puntos peligrosos recientes
+    // Recuerda zonas peligrosas (dinámica emergente)
     struct RecuerdoPeligro
     {
         public Vector3 posicion;
@@ -55,9 +53,10 @@ public class Aldeano : Agent
         ElegirArbol();
     }
 
+    // Copia valores desde Simulate
     void AplicarConfig()
     {
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         if (cfg == null) return;
 
         vidaMaxima = cfg.aldeanoVidaMaxima;
@@ -82,6 +81,7 @@ public class Aldeano : Agent
         ConsumirEnergia(h);
     }
 
+    // Borra recuerdos viejos
     void ActualizarMemorias(float dt)
     {
         for (int i = memorias.Count - 1; i >= 0; i--)
@@ -95,12 +95,13 @@ public class Aldeano : Agent
         }
     }
 
+    // Si ve un lobo cerca, huye (en la aldea está seguro)
     void DetectarPeligro()
     {
         if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(transform.position))
         {
             loboAmenaza = null;
-            return; // inmune dentro de la aldea
+            return;
         }
 
         loboAmenaza = BuscarMasCercano<Lobo>(visionRange);
@@ -111,10 +112,10 @@ public class Aldeano : Agent
         }
     }
 
+    // Decide si ya toca volver a la aldea
     void EvaluarEstado()
     {
-        var cfg = global::Simulate.Instancia;
-        float tiempoEntre = cfg != null ? cfg.aldeanoTiempoEntreRefugios : 25f;
+        var cfg = ConfigSim.Actual;
 
         if (estadoAldeano == EstadoAldeano.Huyendo || estadoAldeano == EstadoAldeano.EnRefugio || estadoAldeano == EstadoAldeano.Muerto)
             return;
@@ -127,9 +128,10 @@ public class Aldeano : Agent
         }
     }
 
+    // Hace lo que diga el estado actual
     void EjecutarEstado()
     {
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         float vel = speed;
         float velHuida = cfg != null ? cfg.aldeanoVelocidadHuyendo : speed * 1.5f;
 
@@ -146,13 +148,27 @@ public class Aldeano : Agent
                     if (LlegoAlDestino(0.5f))
                         estadoAldeano = EstadoAldeano.Recolectando;
                 }
+                else if (maderaCargada > 0f)
+                {
+                    // No queda madera: vuelve con lo que lleva
+                    estadoAldeano = EstadoAldeano.Regresando;
+                    IrAAldea();
+                }
                 break;
 
             case EstadoAldeano.Recolectando:
-                if (arbolObjetivo == null || !arbolObjetivo.TieneMaderaDisponible())
+                if (arbolObjetivo == null)
                 {
-                    estadoAldeano = EstadoAldeano.YendoAlBosque;
-                    ElegirArbol();
+                    if (maderaCargada > 0f)
+                    {
+                        estadoAldeano = EstadoAldeano.Regresando;
+                        IrAAldea();
+                    }
+                    else
+                    {
+                        estadoAldeano = EstadoAldeano.YendoAlBosque;
+                        ElegirArbol();
+                    }
                     break;
                 }
 
@@ -160,10 +176,23 @@ public class Aldeano : Agent
                 float extraido = arbolObjetivo.Extraer(Mathf.Min(maderaPorTick * h, faltante));
                 maderaCargada += extraido;
 
-                if (maderaCargada >= capacidadCarga || !arbolObjetivo.TieneMaderaDisponible())
+                // Si se acabó la madera, el objeto desaparece
+                bool seAcabo = arbolObjetivo == null || !arbolObjetivo.TieneMaderaDisponible();
+                if (seAcabo)
+                    arbolObjetivo = null;
+
+                if (maderaCargada >= capacidadCarga || seAcabo)
                 {
-                    estadoAldeano = EstadoAldeano.Regresando;
-                    IrAAldea();
+                    if (maderaCargada > 0f)
+                    {
+                        estadoAldeano = EstadoAldeano.Regresando;
+                        IrAAldea();
+                    }
+                    else
+                    {
+                        estadoAldeano = EstadoAldeano.YendoAlBosque;
+                        ElegirArbol();
+                    }
                 }
                 break;
 
@@ -186,7 +215,7 @@ public class Aldeano : Agent
                 break;
 
             case EstadoAldeano.Huyendo:
-                // Corre a la aldea; si no hay aldea, huye del lobo
+                // Corre a la aldea; si no hay, se aleja del lobo
                 if (Aldea.Instancia != null)
                     IrAAldea();
                 else if (loboAmenaza != null)
@@ -209,6 +238,7 @@ public class Aldeano : Agent
         PintarPorEstado();
     }
 
+    // Deja la madera en el almacén y descansa un rato
     void DepositarYRefugiarse()
     {
         if (maderaCargada > 0f && Aldea.Instancia != null)
@@ -218,7 +248,7 @@ public class Aldeano : Agent
             maderaCargada = 0f;
         }
 
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         tiempoEnRefugio = cfg != null ? cfg.aldeanoDuracionRefugio : 3f;
         estadoAldeano = EstadoAldeano.EnRefugio;
         arbolObjetivo = null;
@@ -231,12 +261,13 @@ public class Aldeano : Agent
             destination = Aldea.Instancia.PuntoRefugio();
     }
 
+    // Escoge la madera más cercana (castiga las zonas peligrosas)
     void ElegirArbol()
     {
         Arbol[] arboles = FindObjectsByType<Arbol>(FindObjectsSortMode.None);
         Arbol mejor = null;
         float mejorScore = float.MaxValue;
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         float radioPeligro = cfg != null ? cfg.memoriaPeligroRadio : 3f;
         float penalizacion = cfg != null ? cfg.memoriaPeligroPenalizacion : 8f;
 
@@ -273,9 +304,10 @@ public class Aldeano : Agent
         return extra;
     }
 
+    // Guarda dónde lo atacaron para no volver tan fácil
     public void RegistrarPeligroAqui()
     {
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         memorias.Add(new RecuerdoPeligro
         {
             posicion = transform.position,
@@ -287,7 +319,7 @@ public class Aldeano : Agent
     {
         if (!isAlive) return;
 
-        // Inmune en aldea
+        // Dentro de la aldea no le hacen daño
         if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(transform.position))
             return;
 
@@ -311,7 +343,7 @@ public class Aldeano : Agent
 
     void ConsumirEnergia(float dt)
     {
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         float consumo = cfg != null ? cfg.aldeanoConsumoEnergiaPorTick : 0.5f;
         if (estadoAldeano != EstadoAldeano.EnRefugio)
             energy -= consumo * dt;
@@ -319,7 +351,7 @@ public class Aldeano : Agent
         if (energy <= 0f)
         {
             energy = 0f;
-            // Sin energía: vuelve a refugiarse en vez de morir al instante
+            // Sin energía vuelve a refugiarse (no muere de una)
             if (estadoAldeano != EstadoAldeano.EnRefugio && estadoAldeano != EstadoAldeano.Huyendo)
             {
                 estadoAldeano = EstadoAldeano.Regresando;
@@ -328,6 +360,7 @@ public class Aldeano : Agent
         }
     }
 
+    // Cambia el color según lo que esté haciendo (para verlo fácil)
     void PintarPorEstado()
     {
         if (spriteRenderer == null) return;

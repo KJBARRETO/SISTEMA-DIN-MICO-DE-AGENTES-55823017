@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// Estados genéricos del esqueleto (las subclases usan los suyos)
 public enum AgentState
 {
     Exploring,
@@ -8,10 +9,7 @@ public enum AgentState
     Fleeing
 }
 
-/// <summary>
-/// Clase base de agentes: movimiento, visión, vida y muerte.
-/// Las subclases (Aldeano, Lobo) implementan su propia máquina de estados.
-/// </summary>
+// Clase base: lo que comparten aldeano y lobo (moverse, ver, vida, morir)
 public class Agent : MonoBehaviour
 {
     [Header("Agent Settings")]
@@ -27,8 +25,8 @@ public class Agent : MonoBehaviour
     public bool isAlive = true;
     public AgentState currentState = AgentState.Exploring;
 
-    protected Vector3 destination;
-    protected float h;
+    protected Vector3 destination; // hacia dónde se mueve
+    protected float h;             // duración del tick actual
     protected SpriteRenderer spriteRenderer;
 
     protected virtual void Awake()
@@ -42,20 +40,22 @@ public class Agent : MonoBehaviour
         destination = transform.position;
     }
 
+    // Cada entidad redefine esto; Simulate.cs lo llama en cada tick
     public virtual void Simulate(float h)
     {
         if (!isAlive) return;
         this.h = h;
     }
 
+    // Camina hacia destination
     protected void MoverHaciaDestino(float velocidadActual)
     {
         Vector3 siguiente = Vector3.MoveTowards(transform.position, destination, velocidadActual * h);
 
-        // Evitar obstáculos si hay capa Obstacles
         Vector2 dir = (siguiente - transform.position);
         if (dir.sqrMagnitude > 0.0001f)
         {
+            // Si hay una pared, cambia de rumbo
             RaycastHit2D hit = Physics2D.Raycast(transform.position, dir.normalized, velocidadActual * h + 0.1f, LayerMask.GetMask("Obstacles"));
             if (hit.collider != null)
             {
@@ -66,11 +66,12 @@ public class Agent : MonoBehaviour
 
         transform.position = siguiente;
 
-        // Orientar sprite según dirección horizontal
+        // Voltea el sprite según si va a la izquierda o derecha
         if (spriteRenderer != null && Mathf.Abs(dir.x) > 0.01f)
             spriteRenderer.flipX = dir.x < 0f;
     }
 
+    // Escoge un punto aleatorio cerca (para patrullar)
     protected void SelectNewDestination()
     {
         Vector3 direction = new Vector3(
@@ -98,6 +99,7 @@ public class Agent : MonoBehaviour
         return Vector2.Distance(transform.position, destination) <= umbral;
     }
 
+    // Busca el objeto más cercano de un tipo (ej. Lobo, Aldeano)
     protected T BuscarMasCercano<T>(float rango) where T : Component
     {
         T[] todos = FindObjectsByType<T>(FindObjectsSortMode.None);
@@ -158,6 +160,7 @@ public class Agent : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // Solo se ve en el editor al seleccionar el objeto
     protected virtual void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;

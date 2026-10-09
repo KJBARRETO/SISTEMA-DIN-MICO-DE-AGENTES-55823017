@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// Estados del lobo
 public enum EstadoLobo
 {
     Patrullando,
@@ -10,9 +11,7 @@ public enum EstadoLobo
     Muerto
 }
 
-/// <summary>
-/// Lobo: patrulla el bosque, caza aldeanos y NUNCA entra a la aldea.
-/// </summary>
+// Depredador: caza aldeanos en el bosque y no entra a la aldea
 public class Lobo : Agent
 {
     public EstadoLobo estadoLobo = EstadoLobo.Patrullando;
@@ -23,7 +22,7 @@ public class Lobo : Agent
 
     Aldeano presa;
     float tiempoDescanso;
-    float cooldownAtaque;
+    float cooldownAtaque; // para no pegar todos los frames
 
     static int contadorId;
     int id;
@@ -44,13 +43,13 @@ public class Lobo : Agent
 
     void AplicarConfig()
     {
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         if (cfg == null) return;
 
         vidaMaxima = cfg.loboVidaMaxima;
         vida = vidaMaxima;
         hambreMaxima = cfg.loboHambreMaxima;
-        hambre = 20f; // empieza poco hambriento: da tiempo a los aldeanos
+        hambre = 35f; // empieza poco hambriento
         speed = cfg.loboVelocidad;
         visionRange = cfg.loboRadioDeteccion;
         danio = cfg.loboDanio;
@@ -62,7 +61,8 @@ public class Lobo : Agent
         if (!isAlive || estadoLobo == EstadoLobo.Muerto) return;
         this.h = h;
 
-        var cfg = global::Simulate.Instancia;
+        // El hambre sube con el tiempo
+        var cfg = ConfigSim.Actual;
         hambre = Mathf.Min(hambreMaxima, hambre + (cfg != null ? cfg.loboHambrePorTick : 1.5f) * h);
 
         EvaluarEstado();
@@ -70,13 +70,14 @@ public class Lobo : Agent
         PintarPorEstado();
     }
 
+    // Decide si patrulla, persigue o ataca
     void EvaluarEstado()
     {
         if (estadoLobo == EstadoLobo.Descansando || estadoLobo == EstadoLobo.Muerto)
             return;
 
-        // Solo caza si tiene suficiente hambre (da tiempo a recolectar)
-        var cfg = global::Simulate.Instancia;
+        // Con poca hambre solo camina (da tiempo a los aldeanos)
+        var cfg = ConfigSim.Actual;
         float umbralHambre = cfg != null ? cfg.loboHambreMinimaParaCazar : 45f;
         if (hambre < umbralHambre)
         {
@@ -101,12 +102,12 @@ public class Lobo : Agent
             estadoLobo = EstadoLobo.Rastreando;
     }
 
+    // Busca un aldeano que no esté en la aldea
     Aldeano BuscarPresaValida()
     {
         Aldeano candidata = BuscarMasCercano<Aldeano>(visionRange);
         if (candidata == null) return null;
 
-        // No persigue si el aldeano está en la aldea
         if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(candidata.transform.position))
             return null;
 
@@ -115,7 +116,7 @@ public class Lobo : Agent
 
     void EjecutarEstado()
     {
-        var cfg = global::Simulate.Instancia;
+        var cfg = ConfigSim.Actual;
         float vel = speed;
         float velPersecucion = cfg != null ? cfg.loboVelocidadPersiguiendo : speed * 1.3f;
 
@@ -145,6 +146,7 @@ public class Lobo : Agent
                     break;
                 }
 
+                // Si se metió a la aldea, lo suelta
                 if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(presa.transform.position))
                 {
                     presa = null;
@@ -187,9 +189,9 @@ public class Lobo : Agent
         }
     }
 
+    // Prefiere caminar por el bosque
     void ElegirPuntoPatrulla()
     {
-        // Sesgo al bosque
         if (MapaZonas.Instancia != null && MapaZonas.Instancia.IntentarPuntoAleatorio(TipoZona.Bosque, out Vector3 puntoBosque))
         {
             destination = puntoBosque;
@@ -200,13 +202,13 @@ public class Lobo : Agent
         CorregirDestinoFueraDeAldea();
     }
 
+    // Se mueve, pero si toca la aldea se echa para atrás
     void MoverConRestriccionAldea(float velocidad)
     {
         CorregirDestinoFueraDeAldea();
         Vector3 anterior = transform.position;
         MoverHaciaDestino(velocidad);
 
-        // Si el movimiento entró a la aldea, revertir y elegir otro destino
         if (MapaZonas.Instancia != null && !MapaZonas.Instancia.PosicionPermitidaParaLobo(transform.position))
         {
             transform.position = anterior;
@@ -214,6 +216,7 @@ public class Lobo : Agent
         }
     }
 
+    // Si el destino cae en la aldea, lo cambia
     void CorregirDestinoFueraDeAldea()
     {
         if (MapaZonas.Instancia != null && !MapaZonas.Instancia.PosicionPermitidaParaLobo(destination))
