@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-
+ 
 // Estados del aldeano
 public enum EstadoAldeano
 {
@@ -12,7 +12,7 @@ public enum EstadoAldeano
     Huyendo,
     Muerto
 }
-
+ 
 // Habitante de la aldea: junta madera y huye de los lobos
 public class Aldeano : Agent
 {
@@ -20,31 +20,33 @@ public class Aldeano : Agent
     public float maderaCargada = 0f;
     public float capacidadCarga = 10f;
     public float maderaPorTick = 1f;
-
+    [Range(0.1f, 1f)] public float factorVida = 0.6f; // 0.6 = 60% de la vida del config
+ 
     float temporizadorRefugio; // cuándo debe volver a refugiarse
     float tiempoEnRefugio;
+    float ralentizacion;       // segundos restantes de lentitud tras recibir un golpe
     Arbol arbolObjetivo;
     Lobo loboAmenaza;
-
+ 
     // Recuerda zonas peligrosas (dinámica emergente)
     struct RecuerdoPeligro
     {
         public Vector3 posicion;
         public float tiempoRestante;
     }
-
+ 
     readonly List<RecuerdoPeligro> memorias = new List<RecuerdoPeligro>();
-
+ 
     static int contadorId;
     int id;
-
+ 
     protected override void Awake()
     {
         base.Awake();
         id = ++contadorId;
         name = $"Aldeano_{id}";
     }
-
+ 
     protected override void Start()
     {
         base.Start();
@@ -52,14 +54,15 @@ public class Aldeano : Agent
         estadoAldeano = EstadoAldeano.YendoAlBosque;
         ElegirArbol();
     }
-
+ 
     // Copia valores desde Simulate
     void AplicarConfig()
     {
         var cfg = ConfigSim.Actual;
         if (cfg == null) return;
-
-        vidaMaxima = cfg.aldeanoVidaMaxima;
+ 
+        // CAMBIO: vida reducida con factorVida (ajustable en el Inspector)
+        vidaMaxima = cfg.aldeanoVidaMaxima * factorVida;
         vida = vidaMaxima;
         energy = cfg.aldeanoEnergiaMaxima;
         speed = cfg.aldeanoVelocidad;
@@ -68,19 +71,19 @@ public class Aldeano : Agent
         maderaPorTick = cfg.aldeanoMaderaPorTick;
         temporizadorRefugio = cfg.aldeanoTiempoEntreRefugios;
     }
-
+ 
     public override void Simulate(float h)
     {
         if (!isAlive || estadoAldeano == EstadoAldeano.Muerto) return;
         this.h = h;
-
+ 
         ActualizarMemorias(h);
         DetectarPeligro();
         EvaluarEstado();
         EjecutarEstado();
         ConsumirEnergia(h);
     }
-
+ 
     // Borra recuerdos viejos
     void ActualizarMemorias(float dt)
     {
@@ -94,7 +97,7 @@ public class Aldeano : Agent
                 memorias[i] = r;
         }
     }
-
+ 
     // Si ve un lobo cerca, huye (en la aldea está seguro)
     void DetectarPeligro()
     {
@@ -103,23 +106,22 @@ public class Aldeano : Agent
             loboAmenaza = null;
             return;
         }
-
-        loboAmenaza = BuscarMasCercano<Lobo>(visionRange);
+ 
+        // CAMBIO: nota al lobo más tarde (la mitad del rango de visión)
+        loboAmenaza = BuscarMasCercano<Lobo>(visionRange * 0.5f);
         if (loboAmenaza != null && estadoAldeano != EstadoAldeano.Huyendo && estadoAldeano != EstadoAldeano.EnRefugio)
         {
             estadoAldeano = EstadoAldeano.Huyendo;
             RegistroEventos.Agregar($"{name} detectó a {loboAmenaza.name} y huye");
         }
     }
-
+ 
     // Decide si ya toca volver a la aldea
     void EvaluarEstado()
     {
-        var cfg = ConfigSim.Actual;
-
         if (estadoAldeano == EstadoAldeano.Huyendo || estadoAldeano == EstadoAldeano.EnRefugio || estadoAldeano == EstadoAldeano.Muerto)
             return;
-
+ 
         temporizadorRefugio -= h;
         if (temporizadorRefugio <= 0f || maderaCargada >= capacidadCarga)
         {
@@ -127,14 +129,26 @@ public class Aldeano : Agent
             IrAAldea();
         }
     }
-
+ 
     // Hace lo que diga el estado actual
     void EjecutarEstado()
     {
         var cfg = ConfigSim.Actual;
         float vel = speed;
         float velHuida = cfg != null ? cfg.aldeanoVelocidadHuyendo : speed * 1.5f;
-
+ 
+        // CAMBIO: tras recibir un golpe va más lento un rato
+        if (ralentizacion > 0f)
+        {
+            ralentizacion -= h;
+            vel *= 0.5f;
+            velHuida *= 0.5f;
+        }
+ 
+        // CAMBIO: cansancio, con poca energía huye más lento
+        float factorEnergia = Mathf.Clamp(energy / 30f, 0.6f, 1f);
+        velHuida *= factorEnergia;
+ 
         switch (estadoAldeano)
         {
             case EstadoAldeano.Descansando:
@@ -155,7 +169,7 @@ public class Aldeano : Agent
                     IrAAldea();
                 }
                 break;
-
+ 
             case EstadoAldeano.Recolectando:
                 if (arbolObjetivo == null)
                 {
@@ -171,16 +185,16 @@ public class Aldeano : Agent
                     }
                     break;
                 }
-
+ 
                 float faltante = capacidadCarga - maderaCargada;
                 float extraido = arbolObjetivo.Extraer(Mathf.Min(maderaPorTick * h, faltante));
                 maderaCargada += extraido;
-
+ 
                 // Si se acabó la madera, el objeto desaparece
                 bool seAcabo = arbolObjetivo == null || !arbolObjetivo.TieneMaderaDisponible();
                 if (seAcabo)
                     arbolObjetivo = null;
-
+ 
                 if (maderaCargada >= capacidadCarga || seAcabo)
                 {
                     if (maderaCargada > 0f)
@@ -195,14 +209,14 @@ public class Aldeano : Agent
                     }
                 }
                 break;
-
+ 
             case EstadoAldeano.Regresando:
                 IrAAldea();
                 MoverHaciaDestino(vel);
                 if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(transform.position))
                     DepositarYRefugiarse();
                 break;
-
+ 
             case EstadoAldeano.EnRefugio:
                 tiempoEnRefugio -= h;
                 energy = Mathf.Min(energy + 5f * h, cfg != null ? cfg.aldeanoEnergiaMaxima : 100f);
@@ -213,31 +227,29 @@ public class Aldeano : Agent
                     ElegirArbol();
                 }
                 break;
-
+ 
             case EstadoAldeano.Huyendo:
-                // Corre a la aldea; si no hay, se aleja del lobo
-                if (Aldea.Instancia != null)
-                    IrAAldea();
-                else if (loboAmenaza != null)
+                // CAMBIO: NO corre a la aldea. Se aleja del lobo y, cuando ya no
+                // lo tiene cerca, vuelve a lo suyo. El refugio es solo por tiempo.
+                if (loboAmenaza == null)
                 {
-                    Vector3 lejos = transform.position - loboAmenaza.transform.position;
-                    if (lejos.sqrMagnitude < 0.01f) lejos = Vector3.left;
-                    destination = transform.position + lejos.normalized * 5f;
+                    estadoAldeano = EstadoAldeano.YendoAlBosque;
+                    ElegirArbol();
+                    break;
                 }
-
+ 
+                Vector3 lejos = transform.position - loboAmenaza.transform.position;
+                lejos.z = 0f;
+                if (lejos.sqrMagnitude < 0.01f) lejos = Vector3.left;
+                destination = transform.position + lejos.normalized * 5f;
+ 
                 MoverHaciaDestino(velHuida);
-
-                if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(transform.position))
-                {
-                    DepositarYRefugiarse();
-                    RegistroEventos.Agregar($"{name} llegó a refugio");
-                }
                 break;
         }
-
+ 
         PintarPorEstado();
     }
-
+ 
     // Deja la madera en el almacén y descansa un rato
     void DepositarYRefugiarse()
     {
@@ -247,20 +259,21 @@ public class Aldeano : Agent
             RegistroEventos.Agregar($"{name} depositó {maderaCargada:0.#} de madera (almacén: {Aldea.Instancia.maderaEnAlmacen:0.#})");
             maderaCargada = 0f;
         }
-
+ 
         var cfg = ConfigSim.Actual;
         tiempoEnRefugio = cfg != null ? cfg.aldeanoDuracionRefugio : 3f;
         estadoAldeano = EstadoAldeano.EnRefugio;
         arbolObjetivo = null;
         loboAmenaza = null;
+        ralentizacion = 0f;
     }
-
+ 
     void IrAAldea()
     {
         if (Aldea.Instancia != null)
             destination = Aldea.Instancia.PuntoRefugio();
     }
-
+ 
     // Escoge la madera más cercana (castiga las zonas peligrosas)
     void ElegirArbol()
     {
@@ -270,21 +283,21 @@ public class Aldeano : Agent
         var cfg = ConfigSim.Actual;
         float radioPeligro = cfg != null ? cfg.memoriaPeligroRadio : 3f;
         float penalizacion = cfg != null ? cfg.memoriaPeligroPenalizacion : 8f;
-
+ 
         foreach (Arbol a in arboles)
         {
             if (a == null || !a.TieneMaderaDisponible()) continue;
-
+ 
             float dist = Vector2.Distance(transform.position, a.transform.position);
             float score = dist + PenalizacionMemoria(a.transform.position, radioPeligro, penalizacion);
-
+ 
             if (score < mejorScore)
             {
                 mejorScore = score;
                 mejor = a;
             }
         }
-
+ 
         arbolObjetivo = mejor;
         if (arbolObjetivo != null)
         {
@@ -292,7 +305,7 @@ public class Aldeano : Agent
             estadoAldeano = EstadoAldeano.YendoAlBosque;
         }
     }
-
+ 
     float PenalizacionMemoria(Vector3 punto, float radio, float pena)
     {
         float extra = 0f;
@@ -303,7 +316,7 @@ public class Aldeano : Agent
         }
         return extra;
     }
-
+ 
     // Guarda dónde lo atacaron para no volver tan fácil
     public void RegistrarPeligroAqui()
     {
@@ -314,23 +327,25 @@ public class Aldeano : Agent
             tiempoRestante = cfg != null ? cfg.memoriaPeligroDuracion : 40f
         });
     }
-
+ 
     public override void RecibirDanio(float danio, Agent atacante = null)
     {
         if (!isAlive) return;
-
+ 
         // Dentro de la aldea no le hacen daño
         if (Aldea.Instancia != null && Aldea.Instancia.EstaDentro(transform.position))
             return;
-
+ 
         RegistrarPeligroAqui();
         vida -= danio;
+        ralentizacion = 1.5f; // CAMBIO: el golpe lo ralentiza
+        if (atacante is Lobo lobo) loboAmenaza = lobo;
         estadoAldeano = EstadoAldeano.Huyendo;
-
+ 
         if (vida <= 0f)
             Morir(atacante);
     }
-
+ 
     public override void Morir(Agent causante = null)
     {
         if (!isAlive) return;
@@ -340,14 +355,14 @@ public class Aldeano : Agent
         RegistroEventos.Agregar($"{name} fue cazado" + (causante != null ? $" por {causante.name}" : ""));
         Destroy(gameObject);
     }
-
+ 
     void ConsumirEnergia(float dt)
     {
         var cfg = ConfigSim.Actual;
         float consumo = cfg != null ? cfg.aldeanoConsumoEnergiaPorTick : 0.5f;
         if (estadoAldeano != EstadoAldeano.EnRefugio)
             energy -= consumo * dt;
-
+ 
         if (energy <= 0f)
         {
             energy = 0f;
@@ -359,7 +374,7 @@ public class Aldeano : Agent
             }
         }
     }
-
+ 
     // Cambia el color según lo que esté haciendo (para verlo fácil)
     void PintarPorEstado()
     {
