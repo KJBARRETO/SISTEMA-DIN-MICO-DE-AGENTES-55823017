@@ -1,95 +1,91 @@
 using UnityEngine;
 
+public enum AgentState
+{
+    Exploring,
+    Seeking,
+    Acting,
+    Fleeing
+}
+
+/// <summary>
+/// Clase base de agentes: movimiento, visión, vida y muerte.
+/// Las subclases (Aldeano, Lobo) implementan su propia máquina de estados.
+/// </summary>
 public class Agent : MonoBehaviour
 {
     [Header("Agent Settings")]
-    public float energy = 10;
-    public float age = 0;
-    public float maxAge = 20;
+    public float energy = 100f;
+    public float age = 0f;
+    public float maxAge = 9999f;
     public float speed = 1f;
     public float visionRange = 5f;
+    public float vida = 100f;
+    public float vidaMaxima = 100f;
 
     [Header("Agent States")]
     public bool isAlive = true;
     public AgentState currentState = AgentState.Exploring;
 
-    private Vector3 destination;
-    private float h;
+    protected Vector3 destination;
+    protected float h;
+    protected SpriteRenderer spriteRenderer;
 
-    private void Start()
+    protected virtual void Awake()
+    {
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        destination = transform.position;
+    }
+
+    protected virtual void Start()
     {
         destination = transform.position;
     }
 
-    public void Simulate(float h)
+    public virtual void Simulate(float h)
     {
         if (!isAlive) return;
-
         this.h = h;
+    }
 
-        EvaluateState();
+    protected void MoverHaciaDestino(float velocidadActual)
+    {
+        Vector3 siguiente = Vector3.MoveTowards(transform.position, destination, velocidadActual * h);
 
-        switch (currentState)
+        // Evitar obstáculos si hay capa Obstacles
+        Vector2 dir = (siguiente - transform.position);
+        if (dir.sqrMagnitude > 0.0001f)
         {
-            case AgentState.Exploring:
-                Explore();
-                break;
-            case AgentState.Seeking:
-                Seek();
-                break;
-            case AgentState.Acting:
-                Act();
-                break;
-            case AgentState.Fleeing:
-                Flee();
-                break;
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, dir.normalized, velocidadActual * h + 0.1f, LayerMask.GetMask("Obstacles"));
+            if (hit.collider != null)
+            {
+                SelectNewDestination();
+                return;
+            }
         }
 
-        Move();
-        Age();
-        CheckState();
+        transform.position = siguiente;
+
+        // Orientar sprite según dirección horizontal
+        if (spriteRenderer != null && Mathf.Abs(dir.x) > 0.01f)
+            spriteRenderer.flipX = dir.x < 0f;
     }
 
-    void EvaluateState()
-    {
-    }
-
-    void Explore()
-    {
-        if (Vector3.Distance(transform.position, destination) < 0.1f)
-        {
-            SelectNewDestination();
-        }
-    }
-
-    void Seek()
-    {
-    }
-
-    void Act()
-    {
-    }
-
-    void Flee()
-    {
-    }
-
-    void SelectNewDestination()
+    protected void SelectNewDestination()
     {
         Vector3 direction = new Vector3(
             Random.Range(-visionRange, visionRange),
             Random.Range(-visionRange, visionRange),
-            0
+            0f
         );
 
         Vector3 targetPoint = transform.position + direction;
-
         RaycastHit2D hit = Physics2D.Raycast(transform.position, direction.normalized, visionRange, LayerMask.GetMask("Obstacles"));
 
         if (hit.collider != null)
         {
             float offset = transform.localScale.magnitude * 0.5f;
-            destination = hit.point - (Vector2)direction.normalized * offset;
+            destination = (Vector3)hit.point - direction.normalized * offset;
         }
         else
         {
@@ -97,44 +93,36 @@ public class Agent : MonoBehaviour
         }
     }
 
-    void Move()
+    protected bool LlegoAlDestino(float umbral = 0.2f)
     {
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            destination,
-            speed * h
-        );
-
-        energy -= speed * h;
+        return Vector2.Distance(transform.position, destination) <= umbral;
     }
 
-    void Age()
+    protected T BuscarMasCercano<T>(float rango) where T : Component
     {
-        age += h;
-    }
+        T[] todos = FindObjectsByType<T>(FindObjectsSortMode.None);
+        T mejor = null;
+        float minDist = float.MaxValue;
 
-    void CheckState()
-    {
-        if (energy <= 0 || age > maxAge)
+        foreach (T candidato in todos)
         {
-            isAlive = false;
-            Destroy(gameObject);
+            if (candidato == null || candidato.gameObject == gameObject) continue;
+
+            Agent otro = candidato as Agent;
+            if (otro != null && !otro.isAlive) continue;
+
+            float dist = Vector2.Distance(transform.position, candidato.transform.position);
+            if (dist <= rango && dist < minDist)
+            {
+                minDist = dist;
+                mejor = candidato;
+            }
         }
+
+        return mejor;
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, visionRange);
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawSphere(destination, 0.2f);
-
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(transform.position, destination);
-    }
-
-    Collider2D FindNearest(string layerName)
+    protected Collider2D FindNearest(string layerName)
     {
         Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, visionRange, LayerMask.GetMask(layerName));
         Collider2D nearest = null;
@@ -151,5 +139,32 @@ public class Agent : MonoBehaviour
         }
 
         return nearest;
+    }
+
+    public virtual void RecibirDanio(float danio, Agent atacante = null)
+    {
+        if (!isAlive) return;
+        vida -= danio;
+        if (vida <= 0f)
+            Morir(atacante);
+    }
+
+    public virtual void Morir(Agent causante = null)
+    {
+        if (!isAlive) return;
+        isAlive = false;
+        vida = 0f;
+        RegistroEventos.Agregar($"{name} murió" + (causante != null ? $" por {causante.name}" : ""));
+        Destroy(gameObject);
+    }
+
+    protected virtual void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, visionRange);
+        Gizmos.color = Color.red;
+        Gizmos.DrawSphere(destination, 0.15f);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(transform.position, destination);
     }
 }

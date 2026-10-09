@@ -44,6 +44,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7aee03c263c25634e92990da1907b9be, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulate
-  secondsPerIteration: 0.01
+  semillaAleatoria: 42
+  secondsPerIteration: 0.05
+  ended: 0
+  tiempoSimulado: 0
+  mensajeFinal: 
+  aldeanoVidaMaxima: 100
+  aldeanoEnergiaMaxima: 100
+  aldeanoVelocidad: 2
+  aldeanoVelocidadHuyendo: 3.2
+  aldeanoRadioVision: 4
+  aldeanoCapacidadCarga: 10
+  aldeanoMaderaPorTick: 1
+  aldeanoConsumoEnergiaPorTick: 0.5
+  aldeanoTiempoEntreRefugios: 25
+  aldeanoDuracionRefugio: 3
+  loboVidaMaxima: 80
+  loboHambreMaxima: 100
+  loboHambrePorTick: 1.5
+  loboVelocidad: 2.8
+  loboVelocidadPersiguiendo: 3.5
+  loboRadioDeteccion: 5
+  loboRadioAtaque: 0.6
+  loboDanio: 25
+  loboDuracionDescanso: 4
+  loboHambreTrasCazar: 20
+  arbolMaderaMaxima: 20
+  arbolTasaRegeneracion: 0.4
+  arbolUmbralDisponible: 1
+  aldeaRadio: 4
+  aldeaMaderaInicial: 0
+  prefabLobo: {fileID: 4000000000000000001, guid: d4e5f60718293a4b5c6d7e8f01a2b3c4, type: 3}
+  spawnIntervaloLobos: 8
+  spawnMaxLobos: 6
+  spawnProbabilidadBase: 0.35
+  maderaObjetivoVictoria: 40
+  tiempoSupervivenciaVictoria: 120
+  maderaMinimaSupervivencia: 5
+  memoriaPeligroRadio: 3
+  memoriaPeligroDuracion: 40
+  memoriaPeligroPenalizacion: 8
   agents: []
-  spawner: {fileID: 0}
+  arboles: []
